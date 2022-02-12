@@ -1,0 +1,6 @@
+{
+    "app_name": "Les_Pros_Occitans",
+    "author": "Imaf",
+    "main_module": "src/main/python/main.py",
+    "version": "0.0.0"
+}
