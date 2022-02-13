@@ -31,17 +31,32 @@ def get_prospects_reco():
 	return (p for p in liste_instances if any([p.artisan_donneur, p.artisan_receveur]))
 
 
+# on détermine tel et mel de l'artisan qui va être contacté, sous forme de dictionnaire de listes
+def mel_tel(artisan):
+	liste_mel = []
+	liste_tel = []
+	if isinstance(artisan, str):  # dans le cas d'un artisan_donneur (il n'y en a qu'un)
+		mel, tel = LISTE_ARTISANS[artisan]['email'], decode_tel(LISTE_ARTISANS[artisan]['tel'])
+		liste_mel.append(mel)
+		liste_tel.append(tel)
+	elif isinstance(artisan, list):  # on peut avoir de multiples artisan_receveur
+		mel, tel = [LISTE_ARTISANS[n]['email'] for n in artisan], [decode_tel(LISTE_ARTISANS[n]['tel']) for n in artisan]
+		liste_mel.extend(mel)
+		liste_tel.extend(tel)
+	return dict(mels=liste_mel, tels=liste_tel)
+
+
 # je crée un nouveau prospect
 class Prospect:
-	Mon_Entreprise = 'Ent.Zemaf'
+	Mon_Entreprise = 'Ent.XXX'  # signature des mails et sms
 
-	def __init__(self, nom='', mel='', tel='', adresse='', artisan_donneur='', artisan_receveur=''):
+	def __init__(self, nom='', mel='', tel='', adresse='', artisan_donneur='', artisan_receveur=None):
 		self.nom = nom.capitalize()
 		self.mel = mel
 		self.tel = decode_tel(tel) if tel else tel
 		self.adresse = adresse
 		self.artisan_donneur = artisan_donneur.capitalize()
-		self.artisan_receveur = artisan_receveur.capitalize()
+		self.artisan_receveur = [] if artisan_receveur is None else artisan_receveur
 
 	def check_reco(self):
 		# vérifie s'il existe un artisan donneur et/ou receveur et retourne un dictionnaire
@@ -59,96 +74,98 @@ class Prospect:
 	def envoi_sms(self, artisans, type_evenement='', date=''):  # artisans = check_reco()
 		client = vonage.Client(key="c8ad3ef6", secret="buF9VjnvvbcBQXgJ")
 		sms = vonage.Sms(client)
-		for k in artisans.values():
-			tel = LISTE_ARTISANS[k]['tel']
-			if "devis" in type_evenement:
-				responseData = sms.send_message(
-					{
-						"from": f"{self.Mon_Entreprise}",
-						"to": f"{tel}",
-						"text": f"{type_evenement} le {date} entre {self.Mon_Entreprise} et  {self.nom}.\n "
-						        f"Je vous informerai de la date de début des travaux",
-					}
-				)
-			else:
-				responseData = sms.send_message(
-					{
-						"from": f"{self.Mon_Entreprise}",
-						"to": f"{tel}",
-						"text": f"{type_evenement} le {date} entre {self.Mon_Entreprise} et  {self.nom}.\n "
-					}
-				)
+		for artisan in artisans.values():
+			tels = mel_tel(artisan)['tels']  # on récupère
+			for tel in tels:
+				if "devis" in type_evenement:
+					responseData = sms.send_message(
+						{
+							"from": f"{self.Mon_Entreprise}",
+							"to": f"{tel}",
+							"text": f"{type_evenement} le {date} entre {self.Mon_Entreprise} et  {self.nom}.\n "
+							        f"Je vous informerai de la date de début des travaux",
+						}
+					)
+				else:
+					responseData = sms.send_message(
+						{
+							"from": f"{self.Mon_Entreprise}",
+							"to": f"{tel}",
+							"text": f"{type_evenement} le {date} entre {self.Mon_Entreprise} et  {self.nom}.\n "
+						}
+					)
 
-			if responseData["messages"][0]["status"] == "0":
-				print("Message sent successfully.")
-			else:
-				print(f"Message failed with error: {responseData['messages'][0]['error-text']}")
+				if responseData["messages"][0]["status"] == "0":
+					print("Message sent successfully.")
+				else:
+					print(f"Message failed with error: {responseData['messages'][0]['error-text']}")
 
 	def envoi_email(self, artisans, type_evenement='', date=''):
-		for n in artisans.values():
-			email = LISTE_ARTISANS[n]['email']
-			smtp_server = 'mail.mailo.com'
-			port = 465
-			sender_login = 'zemaf@mailo.com'
-			password = 'Zwingalouz1973!!'
-			# on indique l'alias qu'on veut montrer au receveur
-			sender_alias = 'th.begue@testemail.com'
-			receiver_email = [email, 'tinoveler@gmail.com']
-			message = EmailMessage()
-			message["Subject"] = type_evenement
-			message["From"] = sender_alias
-			# un destinataire
-			message["To"] = email
-			# on crée un contenu texte
-			if "devis" in type_evenement:
-				message.set_content(f"{type_evenement} avec {self.nom}"
-				                    f"Date: {date}"
-				                    f"Vous recevrez un nouvel email pour vous avertir de la date de début des travaux"
-				                    f"Cordialement"
-				                    f"Ent.Th.Bégué")
-				message.add_alternative(f'''
-						<html>
-							<body>
-								<h1>{type_evenement} entre {self.nom} et {self.Mon_Entreprise}!</h1>
-								<p>Date: {date}</p>
-								<p>Vous recevrez un nouvel email pour vous avertir de la date de début des travaux</p>
-								<p>Cordialement.</p>
-								<b>Ent.Th.Bégué</b>
-							</body>
-						</html>
-						''', subtype='html')
-			else:
-				message.set_content(f"{type_evenement} avec {self.nom}"
-				                    f"Date: {date}"
-				                    f"Merci pour votre recommandation. "
-				                    f"Cordialement"
-				                    f"Ent.Th.Bégué")
-				message.add_alternative(f'''
-									<html>
-										<body>
-											<h1>Bonjour, {type_evenement} entre {self.nom} et {self.Mon_Entreprise}!</h1>
-											<p>Date: {date}</p>
-											<p>Cordialement.</p>
-											<b>Ent.Th.Bégué</b>
-										</body>
-									</html>
-									''',
-				                        subtype='html')
+		for artisan in artisans.values():
+			emails = mel_tel(artisan)['mels']
+			for mel in emails:
+				smtp_server = 'mail.mailo.com'
+				port = 465
+				sender_login = 'zemaf@mailo.com'
+				password = 'Zwingalouz1973!!'
+				# on indique l'alias qu'on veut montrer au receveur
+				sender_alias = 'th.begue@testemail.com'
+				receiver_email = [mel, 'tinoveler@gmail.com']
+				message = EmailMessage()
+				message["Subject"] = type_evenement
+				message["From"] = sender_alias
+				# un destinataire
+				message["To"] = mel
+				# on crée un contenu texte
+				if "devis" in type_evenement:
+					message.set_content(f"{type_evenement} avec {self.nom}"
+					                    f"Date: {date}"
+					                    f"Vous recevrez un nouvel email pour vous avertir de la date de début des travaux"
+					                    f"Cordialement"
+					                    f"Ent.Th.Bégué")
+					message.add_alternative(f'''
+							<html>
+								<body>
+									<h1>{type_evenement} entre {self.nom} et {self.Mon_Entreprise}!</h1>
+									<p>Date: {date}</p>
+									<p>Vous recevrez un nouvel email pour vous avertir de la date de début des travaux</p>
+									<p>Cordialement.</p>
+									<b>Ent.Th.Bégué</b>
+								</body>
+							</html>
+							''', subtype='html')
+				else:
+					message.set_content(f"{type_evenement} avec {self.nom}"
+					                    f"Date: {date}"
+					                    f"Merci pour votre recommandation. "
+					                    f"Cordialement"
+					                    f"Ent.Th.Bégué")
+					message.add_alternative(f'''
+										<html>
+											<body>
+												<h1>Bonjour, {type_evenement} entre {self.nom} et {self.Mon_Entreprise}!</h1>
+												<p>Date: {date}</p>
+												<p>Cordialement.</p>
+												<b>Ent.Th.Bégué</b>
+											</body>
+										</html>
+										''',
+					                        subtype='html')
 
-			# on crée un contexte ssl sécurisé
-			context = ssl.create_default_context()
-			# on créé la connexion au serveur avec SMTP_SSL et elle se ferme automatiquement grâce à 'with'
-			if email:
-				with SMTP_SSL(smtp_server, port, context=context) as server:
-					# password = input("Entrez le mot de passe du serveur smtp: ")
-					# masque le mot de passe si on est en mode emulateur console dans edit config!!
-					# password = getpass.getpass(prompt="Entrez le mot de passe du serveur smtp: ")
-					# connexion au compte
-					server.login(sender_login, password)
-					# envoi du mail
-					server.sendmail(sender_alias, receiver_email, message.as_string())
-			else:
-				print("Vérifier que l'email est bien valide puis recommencez.")
+				# on crée un contexte ssl sécurisé
+				context = ssl.create_default_context()
+				# on créé la connexion au serveur avec SMTP_SSL et elle se ferme automatiquement grâce à 'with'
+				if mel:
+					with SMTP_SSL(smtp_server, port, context=context) as server:
+						# password = input("Entrez le mot de passe du serveur smtp: ")
+						# masque le mot de passe si on est en mode emulateur console dans edit config!!
+						# password = getpass.getpass(prompt="Entrez le mot de passe du serveur smtp: ")
+						# connexion au compte
+						server.login(sender_login, password)
+						# envoi du mail
+						server.sendmail(sender_alias, receiver_email, message.as_string())
+				else:
+					print("Vérifier que l'email est bien valide puis recommencez.")
 
 	def save_prospect(self):
 		dict_global = {}
@@ -176,6 +193,10 @@ class Prospect:
 
 
 if __name__ == '__main__':
-	pp = PrettyPrinter(sort_dicts=True)
-	print(decode_tel('0562174000'))
-
+	with open(MES_PROSPECTS, 'r') as f:
+		liste = json.load(f)
+	# prospect = Prospect(**liste["Mraius"])
+	print(mel_tel(liste["Elton john"]['artisan_receveur']))
+	# pp = PrettyPrinter()
+	# pp.pprint(liste["Mraius"])
+# 	print(decode_tel('0562174000'))

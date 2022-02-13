@@ -39,7 +39,8 @@ class CustomListItem(QtWidgets.QListWidgetItem):
 
 class CheckableComboBox(QtWidgets.QComboBox):
     def __init__(self):
-        super(CheckableComboBox, self).__init__()
+        super().__init__()
+        self.liste_artisans_receveurs = []
         # view() retourne la vue de liste de la combobox
         # view() a un signal "pressed" qui renvoie l'index de l'item sélectionné
         self.view().pressed.connect(self.handle_item_pressed)
@@ -56,12 +57,24 @@ class CheckableComboBox(QtWidgets.QComboBox):
             item.setCheckState(Qt.Unchecked)
         else:
             item.setCheckState(Qt.Checked)
-
         # calling method
-        self.check_items()
+        self.checked_items_list()
 
-    # method called by check_items
-    def item_checked(self, index):
+    # calling method
+    def checked_items_list(self):
+
+        # traversing the items
+        for i in range(self.count()):
+            text_label = self.model().item(i, 0).text()
+            # if item is checked add it to the list
+            if self.item_check_status(i) and text_label not in self.liste_artisans_receveurs:
+                self.liste_artisans_receveurs.append(text_label)
+            elif not self.item_check_status(i) and text_label in self.liste_artisans_receveurs:
+                self.liste_artisans_receveurs.remove(text_label)
+        # print(self.liste_artisans_receveurs)
+
+    # method called by checked_items_list
+    def item_check_status(self, index):
 
         # getting item at index
         item = self.model().item(index, 0)
@@ -69,25 +82,14 @@ class CheckableComboBox(QtWidgets.QComboBox):
         # return true if checked else false
         return item.checkState() == Qt.Checked
 
-    # calling method
-    def check_items(self):
-        # blank list
-        checkedItems = []
-
-        # traversing the items
-        for i in range(self.count()):
-            text_label = self.model().item(i, 0).text()
-            # if item is checked add it to the list
-            if self.item_checked(i):
-                checkedItems.append(text_label)
-        print(checkedItems)
-
 
 class CustomInputDialog(QtWidgets.QWidget):
 
     def __init__(self, ctx, parent=None):
         super().__init__()
+        instance_checkable_cbox = CheckableComboBox()  # on crée une instance de la classe 'CheckableComboBox()'
         self.ctx = ctx
+        self.parent = parent
         self.ARTISANS = self.create_ARTISANS()
         self.nom = {'label': "Nom:", 'widget': QtWidgets.QLineEdit()}
         self.mel = {'label': "Email:", 'widget': QtWidgets.QLineEdit()}
@@ -95,14 +97,12 @@ class CustomInputDialog(QtWidgets.QWidget):
         self.adresse = {'label': "Adresse:", 'widget': QtWidgets.QLineEdit()}
         self.artisan_donneur = {'label': "Artisan_donneur:", 'widget': QtWidgets.QComboBox()}
         self.artisan_donneur['widget'].addItems(self.ARTISANS.keys())
-        self.artisan_receveur = {'label': "Sélectinnez les artisans_receveurs:", 'widget': CheckableComboBox()}
+        self.artisan_receveur = {'label': "Sélectinnez les liste_artisans_receveurs:", 'widget': instance_checkable_cbox}
         self.artisan_receveur['widget'].addItems(self.ARTISANS.keys())
-        # self.lw_artisan_receveur = {'label': "lw_art_receveur:", 'widget': QtWidgets.QListWidget()}
-        # self.lw_artisan_receveur['widget'].setSelectionMode(QAbstractItemView.MultiSelection)
-        # self.lw_artisan_receveur['widget'].addItems(self.ARTISANS.keys())
         self.btn_validate = QtWidgets.QPushButton("OK")
-        self.dict_prospect = {}
-        self.parent = parent
+        # on initialise 'dict_prospect' avec les données 'artisan_receveur' récupérées de 'instance_checkable_cbox'
+        self.dict_prospect = dict(artisan_receveur=instance_checkable_cbox.liste_artisans_receveurs)
+
 
         # Layout
 
@@ -113,7 +113,6 @@ class CustomInputDialog(QtWidgets.QWidget):
         layout.addRow(self.adresse['label'], self.adresse['widget'])
         layout.addRow(self.artisan_donneur['label'], self.artisan_donneur['widget'])
         layout.addRow(self.artisan_receveur['label'], self.artisan_receveur['widget'])
-        # layout.addRow(self.lw_artisan_receveur['label'], self.lw_artisan_receveur['widget'])
         layout.addRow("cliquez pour valider", self.btn_validate)
         self.setLayout(layout)
         self.setWindowTitle("Créer un Prospect")
@@ -131,7 +130,8 @@ class CustomInputDialog(QtWidgets.QWidget):
         self.tel['widget'].editingFinished.connect(partial(self.create_key, "tel", self.tel['widget']))
         self.adresse['widget'].editingFinished.connect(partial(self.create_key, "adresse", self.adresse['widget']))
         self.artisan_donneur['widget'].textActivated.connect(partial(self.create_key, "artisan_donneur"))
-        self.artisan_receveur['widget'].textActivated.connect(partial(self.create_key, "artisan_receveur"))
+        # on récupère les données artisan_receveur via instance_checkable_cbox donc pas besoin de recréer une connection
+
         self.btn_validate.clicked.connect(self.validate_form)
 
     def create_ARTISANS(self):
@@ -343,6 +343,7 @@ class MainWindow(QtWidgets.QWidget):
         if selected_prospect:
             dict_str = str(selected_prospect.prospect.__dict__)
             self.te_details_prospect.setText(dict_str)
+
 
     # on récupère le listwidget item sélectionné
     def get_selected_lw_item(self):
