@@ -2,16 +2,16 @@ import os
 import sys
 
 from functools import partial
-
+import pandas as pd
 from PySide6 import QtWidgets, QtCore
-from PySide6.QtGui import QShortcut, QKeySequence
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QShortcut, QKeySequence, QStandardItemModel
+from PySide6.QtWidgets import QApplication, QAbstractItemView
 
 from package.api.artisan import Prospect, get_prospects, get_prospects_reco
 
-from package.api.constants import LISTE_ARTISANS
+# from package.api.constants import LISTE_ARTISANS
 
-ARTISANS = LISTE_ARTISANS.keys()
 
 LISTE_LABELS = ["Nom :", "Email :", "Tel: ", "Adresse :"]
 LISTE_LABELS_ARTISANS = ["Artisan_donneur", "Artisan_receveur"]
@@ -37,20 +37,73 @@ class CustomListItem(QtWidgets.QListWidgetItem):
     pass
 
 
+class CheckableComboBox(QtWidgets.QComboBox):
+    def __init__(self):
+        super(CheckableComboBox, self).__init__()
+        # view() retourne la vue de liste de la combobox
+        # view() a un signal "pressed" qui renvoie l'index de l'item sélectionné
+        self.view().pressed.connect(self.handle_item_pressed)
+        self.setModel(QStandardItemModel(self))
+
+    # when any item get pressed
+    def handle_item_pressed(self, index):
+
+        # getting which item is pressed
+        item = self.model().itemFromIndex(index)
+
+        # make it check if unchecked and vice-versa
+        if item.checkState() == Qt.Checked:
+            item.setCheckState(Qt.Unchecked)
+        else:
+            item.setCheckState(Qt.Checked)
+
+        # calling method
+        self.check_items()
+
+    # method called by check_items
+    def item_checked(self, index):
+
+        # getting item at index
+        item = self.model().item(index, 0)
+
+        # return true if checked else false
+        return item.checkState() == Qt.Checked
+
+    # calling method
+    def check_items(self):
+        # blank list
+        checkedItems = []
+
+        # traversing the items
+        for i in range(self.count()):
+            text_label = self.model().item(i, 0).text()
+            # if item is checked add it to the list
+            if self.item_checked(i):
+                checkedItems.append(text_label)
+        print(checkedItems)
+
+
 class CustomInputDialog(QtWidgets.QWidget):
-    def __init__(self, parent=None):
+
+    def __init__(self, ctx, parent=None):
         super().__init__()
+        self.ctx = ctx
+        self.ARTISANS = self.create_ARTISANS()
         self.nom = {'label': "Nom:", 'widget': QtWidgets.QLineEdit()}
         self.mel = {'label': "Email:", 'widget': QtWidgets.QLineEdit()}
         self.tel = {'label': "Tel:", 'widget': QtWidgets.QLineEdit()}
         self.adresse = {'label': "Adresse:", 'widget': QtWidgets.QLineEdit()}
         self.artisan_donneur = {'label': "Artisan_donneur:", 'widget': QtWidgets.QComboBox()}
-        self.artisan_donneur['widget'].addItems(ARTISANS)
-        self.artisan_receveur = {'label': "Artisan_receveur:", 'widget': QtWidgets.QComboBox()}
-        self.artisan_receveur['widget'].addItems(ARTISANS)
+        self.artisan_donneur['widget'].addItems(self.ARTISANS.keys())
+        self.artisan_receveur = {'label': "Sélectinnez les artisans_receveurs:", 'widget': CheckableComboBox()}
+        self.artisan_receveur['widget'].addItems(self.ARTISANS.keys())
+        # self.lw_artisan_receveur = {'label': "lw_art_receveur:", 'widget': QtWidgets.QListWidget()}
+        # self.lw_artisan_receveur['widget'].setSelectionMode(QAbstractItemView.MultiSelection)
+        # self.lw_artisan_receveur['widget'].addItems(self.ARTISANS.keys())
         self.btn_validate = QtWidgets.QPushButton("OK")
         self.dict_prospect = {}
         self.parent = parent
+
         # Layout
 
         layout = QtWidgets.QFormLayout()
@@ -60,6 +113,7 @@ class CustomInputDialog(QtWidgets.QWidget):
         layout.addRow(self.adresse['label'], self.adresse['widget'])
         layout.addRow(self.artisan_donneur['label'], self.artisan_donneur['widget'])
         layout.addRow(self.artisan_receveur['label'], self.artisan_receveur['widget'])
+        # layout.addRow(self.lw_artisan_receveur['label'], self.lw_artisan_receveur['widget'])
         layout.addRow("cliquez pour valider", self.btn_validate)
         self.setLayout(layout)
         self.setWindowTitle("Créer un Prospect")
@@ -69,7 +123,8 @@ class CustomInputDialog(QtWidgets.QWidget):
         # editionFinished => signal émis quand on tape enter ou quand on change le focus
         # rmq : quand on tape sur ok on crée self.dict_prospect
 
-        # self.nom['widget'].editingFinished.connect(lambda key="zgeg", lineEdit=self.nom['widget']: self.dict_prospect.update({key: lineEdit.text()}))
+        # self.nom['widget'].editingFinished.connect(lambda key="zgeg", lineEdit=self.nom['widget']:
+        # self.dict_prospect.update({key: lineEdit.text()}))
 
         self.nom['widget'].editingFinished.connect(partial(self.create_key, "nom", self.nom['widget']))
         self.mel['widget'].editingFinished.connect(partial(self.create_key, "mel", self.mel['widget']))
@@ -78,6 +133,13 @@ class CustomInputDialog(QtWidgets.QWidget):
         self.artisan_donneur['widget'].textActivated.connect(partial(self.create_key, "artisan_donneur"))
         self.artisan_receveur['widget'].textActivated.connect(partial(self.create_key, "artisan_receveur"))
         self.btn_validate.clicked.connect(self.validate_form)
+
+    def create_ARTISANS(self):
+        liste_artisans = pd.read_excel(self.ctx.get_resource('liste_Pros_occ.xlsx'),
+                                       'listing', dtype=object)
+        liste_artisans = liste_artisans.set_index('NOM')
+
+        return liste_artisans.to_dict('index')
 
     def create_key(self, lbl, wdg):
         # ATTENTION : wdg est soit un widget (lineedit), soit le texte retourné par le signal textActivated
@@ -107,8 +169,9 @@ class CustomInputDialog(QtWidgets.QWidget):
 
 
 class MainWindow(QtWidgets.QWidget):
-    def __init__(self):
+    def __init__(self, ctx):
         super().__init__()
+        self.ctx = ctx
 
         # obligatoire d'indiquer le chemin du fichier associé à la mainwindow pour afficher l'icone
         self.setWindowFilePath(os.getcwd())
@@ -217,7 +280,8 @@ class MainWindow(QtWidgets.QWidget):
 
     # on créé un nouveau prospect, on ajoute son nom à la listwidget et on le sauvegarde dans le fichier MES_PROSPECTS
     def creer_prospect(self):
-        p = CustomInputDialog(self)
+        p = CustomInputDialog(ctx=self.ctx, parent=self)
+        p.resize(150, 150)
         p.show()
         # dict_prospect = {}
         # # on crée la liste des titres de chaque InputDialog
@@ -330,4 +394,3 @@ if __name__ == '__main__':
     ex = CustomInputDialog()
     ex.show()
     app.exec()
-
