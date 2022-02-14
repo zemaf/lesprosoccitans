@@ -55,7 +55,7 @@ class Prospect:
 		self.mel = mel
 		self.tel = decode_tel(tel) if tel else tel
 		self.adresse = adresse
-		self.artisan_donneur = artisan_donneur.capitalize()
+		self.artisan_donneur = artisan_donneur
 		self.artisan_receveur = [] if artisan_receveur is None else artisan_receveur
 
 	def check_reco(self):
@@ -109,8 +109,8 @@ class Prospect:
 				sender_login = 'zemaf@mailo.com'
 				password = 'Zwingalouz1973!!'
 				# on indique l'alias qu'on veut montrer au receveur
-				sender_alias = 'th.begue@testemail.com'
-				receiver_email = [mel, 'tinoveler@gmail.com']
+				sender_alias = 'XXXX@testemail.com'
+				receiver_email = [mel]
 				message = EmailMessage()
 				message["Subject"] = type_evenement
 				message["From"] = sender_alias

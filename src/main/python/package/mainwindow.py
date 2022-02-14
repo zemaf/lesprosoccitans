@@ -341,8 +341,10 @@ class MainWindow(QtWidgets.QWidget):
         # on récupère dans selected_prospect le listwidgetitem sélectionné
         selected_prospect = self.get_selected_lw_item()
         if selected_prospect:
-            dict_str = str(selected_prospect.prospect.__dict__)
-            self.te_details_prospect.setText(dict_str)
+            dict_str = selected_prospect.prospect.__dict__
+            # on arrange la présentation du prospect avec 'join'
+            pretty_print = "\n\n".join([f"{out.capitalize()}: {dict_str[out]}" for out in dict_str.keys()])
+            self.te_details_prospect.setText(pretty_print)
 
 
     # on récupère le listwidget item sélectionné
