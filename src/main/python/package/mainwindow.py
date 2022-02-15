@@ -95,9 +95,11 @@ class CustomInputDialog(QtWidgets.QWidget):
         self.mel = {'label': "Email:", 'widget': QtWidgets.QLineEdit()}
         self.tel = {'label': "Tel:", 'widget': QtWidgets.QLineEdit()}
         self.adresse = {'label': "Adresse:", 'widget': QtWidgets.QLineEdit()}
-        self.artisan_donneur = {'label': "Artisan_donneur:", 'widget': QtWidgets.QComboBox()}
+        self.artisan_donneur = {'label': "Artisan donneur:", 'widget': QtWidgets.QComboBox()}
         self.artisan_donneur['widget'].addItems(self.ARTISANS.keys())
-        self.artisan_receveur = {'label': "Sélectinnez les liste_artisans_receveurs:", 'widget': instance_checkable_cbox}
+        self.artisan_receveur = {'label': "Sélectionnez les artisans receveurs:", 'widget': instance_checkable_cbox}
+        self.artisan_receveur['widget'].setCurrentIndex(-1)  # on place l'index à -1 pour pouvoir afficher le placeholder
+        self.artisan_receveur['widget'].setPlaceholderText("Cochez les artisans souhaités")
         self.artisan_receveur['widget'].addItems(self.ARTISANS.keys())
         self.btn_validate = QtWidgets.QPushButton("OK")
         # on initialise 'dict_prospect' avec les données 'artisan_receveur' récupérées de 'instance_checkable_cbox'
@@ -345,7 +347,6 @@ class MainWindow(QtWidgets.QWidget):
             # on arrange la présentation du prospect avec 'join'
             pretty_print = "\n\n".join([f"{out.capitalize()}: {dict_str[out]}" for out in dict_str.keys()])
             self.te_details_prospect.setText(pretty_print)
-
 
     # on récupère le listwidget item sélectionné
     def get_selected_lw_item(self):
