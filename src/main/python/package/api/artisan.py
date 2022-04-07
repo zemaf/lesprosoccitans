@@ -7,11 +7,22 @@ from smtplib import SMTP_SSL
 import ssl
 import vonage
 
-from package.api.constants import MES_PROSPECTS, LISTE_ARTISANS
+from package.api.constants import MES_PROSPECTS, LISTE_PROS_OCCITANS
 
 
 def decode_tel(numero):
 	return numero.replace(numero[0], '33', 1) if numero else None
+
+
+def get_pros_occitans():
+	if not os.path.exists(LISTE_PROS_OCCITANS):
+		with open(LISTE_PROS_OCCITANS, "w") as f:
+			json.dump({}, f, ensure_ascii=False, indent=4)
+	else:
+		with open(LISTE_PROS_OCCITANS, "r") as f:
+			liste_pros_occitans = json.load(f)  # => {"nom_artisan": {email: "mel", tel: "tel"}, 'nom_artisan2': {}...}
+			# donc k = nom du prospect et d = dictionanire contenant mel, tel, artisan_donneur
+			return liste_pros_occitans
 
 
 def get_prospects():
@@ -35,6 +46,7 @@ def get_prospects_reco():
 def mel_tel(artisan):
 	liste_mel = []
 	liste_tel = []
+	LISTE_ARTISANS = get_pros_occitans()
 	if isinstance(artisan, str):  # dans le cas d'un artisan_donneur (il n'y en a qu'un)
 		mel, tel = LISTE_ARTISANS[artisan]['email'], decode_tel(LISTE_ARTISANS[artisan]['tel'])
 		liste_mel.append(mel)
@@ -75,7 +87,7 @@ class Prospect:
 		client = vonage.Client(key="c8ad3ef6", secret="buF9VjnvvbcBQXgJ")
 		sms = vonage.Sms(client)
 		for artisan in artisans.values():
-			tels = mel_tel(artisan)['tels']  # on récupère
+			tels = mel_tel(artisan)['tels']  # on récupère la liste des téléphones via mel_tel
 			for tel in tels:
 				if "devis" in type_evenement:
 					responseData = sms.send_message(
@@ -193,10 +205,5 @@ class Prospect:
 
 
 if __name__ == '__main__':
-	with open(MES_PROSPECTS, 'r') as f:
-		liste = json.load(f)
-	# prospect = Prospect(**liste["Mraius"])
-	print(mel_tel(liste["Elton john"]['artisan_receveur']))
-	# pp = PrettyPrinter()
-	# pp.pprint(liste["Mraius"])
-# 	print(decode_tel('0562174000'))
+
+	print(get_pros_occitans())

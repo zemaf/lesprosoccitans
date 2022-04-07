@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QShortcut, QKeySequence, QStandardItemModel
 from PySide6.QtWidgets import QApplication, QAbstractItemView
 
-from package.api.artisan import Prospect, get_prospects, get_prospects_reco
+from package.api.artisan import Prospect, get_pros_occitans, get_prospects, get_prospects_reco
 
 # from package.api.constants import LISTE_ARTISANS
 
@@ -90,7 +90,7 @@ class CustomInputDialog(QtWidgets.QWidget):
         instance_checkable_cbox = CheckableComboBox()  # on crée une instance de la classe 'CheckableComboBox()'
         self.ctx = ctx
         self.parent = parent
-        self.ARTISANS = self.create_ARTISANS()
+        self.ARTISANS = get_pros_occitans()  # on récupère la liste des artisans
         self.nom = {'label': "Nom:", 'widget': QtWidgets.QLineEdit()}
         self.mel = {'label': "Email:", 'widget': QtWidgets.QLineEdit()}
         self.tel = {'label': "Tel:", 'widget': QtWidgets.QLineEdit()}
@@ -136,13 +136,6 @@ class CustomInputDialog(QtWidgets.QWidget):
 
         self.btn_validate.clicked.connect(self.validate_form)
 
-    def create_ARTISANS(self):
-        liste_artisans = pd.read_excel(self.ctx.get_resource('liste_Pros_occ.xlsx'),
-                                       'listing', dtype=object)
-        liste_artisans = liste_artisans.set_index('NOM')
-
-        return liste_artisans.to_dict('index')
-
     def create_key(self, lbl, wdg):
         # ATTENTION : wdg est soit un widget (lineedit), soit le texte retourné par le signal textActivated
         if lbl not in ['artisan_donneur', 'artisan_receveur']:
@@ -154,7 +147,6 @@ class CustomInputDialog(QtWidgets.QWidget):
     def validate_form(self):
 
         try:
-            print(self.dict_prospect['nom'])
             if self.dict_prospect['nom']:
                 prospect = Prospect(**self.dict_prospect)
                 prospect.save_prospect()
@@ -264,13 +256,13 @@ class MainWindow(QtWidgets.QWidget):
         # en cliquant sur lw_item dans le listwidget
         lw_item.prospect = prospect  # lw_item a un attribut prospect qui est une instance de la classe Prospect
         # on crée des attributs 'reco', 'donneur' et 'receveur' pour un prospect qui est recommandé, reçu et/ou envoyé
-        lw_item.reco = True if any([
-            lw_item.prospect.artisan_donneur,
-            lw_item.prospect.artisan_receveur
-        ]
-        ) else False
-        lw_item.donneur = True if lw_item.prospect.artisan_donneur else False
-        lw_item.receveur = True if lw_item.prospect.artisan_receveur else False
+        # lw_item.reco = True if any([
+        #     lw_item.prospect.artisan_donneur,
+        #     lw_item.prospect.artisan_receveur
+        # ]
+        # ) else False
+        # lw_item.donneur = True if lw_item.prospect.artisan_donneur else False
+        # lw_item.receveur = True if lw_item.prospect.artisan_receveur else False
         self.lw_afficher_prospects.addItem(lw_item)  # on ajoute l'item au listwidget
 
     # def combo_textchanged(self, t):
