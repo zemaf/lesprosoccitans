@@ -3,18 +3,20 @@ import getpass
 import json
 import os
 from pprint import PrettyPrinter
-from smtplib import SMTP_SSL
+from smtplib import SMTP_SSL, SMTP
 import ssl
 import vonage
 
 from package.api.constants import MES_PROSPECTS, LISTE_PROS_OCCITANS
 
 
-def decode_tel(numero):
+def decode_tel(numero: str):
+	# met le numéro au format "vonage" 33622334455
 	return numero.replace(numero[0], '33', 1) if numero else None
 
 
 def get_pros_occitans():
+	# retourne la liste des pros occitans sous forme de dictionnaire
 	if not os.path.exists(LISTE_PROS_OCCITANS):
 		with open(LISTE_PROS_OCCITANS, "w") as f:
 			json.dump({}, f, ensure_ascii=False, indent=4)
@@ -38,12 +40,14 @@ def get_prospects():
 
 
 def get_prospects_reco():
+	# on récupère une expression génératrice contenant les prospects recommandés pour les afficher dans l'appli
 	liste_instances = get_prospects()
 	return (p for p in liste_instances if any([p.artisan_donneur, p.artisan_receveur]))
 
 
 # on détermine tel et mel de l'artisan qui va être contacté, sous forme de dictionnaire de listes
 def mel_tel(artisan):
+	# artisan est soit un nom d'artisan, soit une liste d'artisans
 	liste_mel = []
 	liste_tel = []
 	LISTE_ARTISANS = get_pros_occitans()
@@ -51,7 +55,7 @@ def mel_tel(artisan):
 		mel, tel = LISTE_ARTISANS[artisan]['email'], decode_tel(LISTE_ARTISANS[artisan]['tel'])
 		liste_mel.append(mel)
 		liste_tel.append(tel)
-	elif isinstance(artisan, list):  # on peut avoir de multiples artisan_receveur
+	elif isinstance(artisan, list):  # on peut avoir de multiples artisans receveurs
 		mel, tel = [LISTE_ARTISANS[n]['email'] for n in artisan], [decode_tel(LISTE_ARTISANS[n]['tel']) for n in artisan]
 		liste_mel.extend(mel)
 		liste_tel.extend(tel)
@@ -113,16 +117,21 @@ class Prospect:
 					print(f"Message failed with error: {responseData['messages'][0]['error-text']}")
 
 	def envoi_email(self, artisans, type_evenement='', date=''):
+		# On utilisera soit la connexion sécurisé avec SMTP_SSL, soit la connexion simple -commentée- avec SMTP
 		for artisan in artisans.values():
 			emails = mel_tel(artisan)['mels']
 			for mel in emails:
-				smtp_server = 'mail.mailo.com'
-				port = 465
-				sender_login = 'zemaf@mailo.com'
-				password = 'Zwingalouz1973!!'
+				smtp_server = 'smtp-relay.sendinblue.com'
+				# smtp_server = 'smtp-relay.sendinblue.com' = version sendingblue non sécurisée
+				port = 587
+				# sender_login = 'zemaf@mailo.com'
+				sender_login = 'rb6qqq4c5m@privaterelay.appleid.com'
+				# password = 'Zwingalouz1973!!'
+				password = 'sYR6dDSBT21I0f4k'
 				# on indique l'alias qu'on veut montrer au receveur
-				sender_alias = 'XXXX@testemail.com'
+				sender_alias = 'pro_occitan@testmail.com'
 				receiver_email = [mel]
+				print(receiver_email)
 				message = EmailMessage()
 				message["Subject"] = type_evenement
 				message["From"] = sender_alias
@@ -164,18 +173,22 @@ class Prospect:
 										''',
 					                        subtype='html')
 
-				# on crée un contexte ssl sécurisé
-				context = ssl.create_default_context()
+				# on crée un contexte ssl sécurisé si connexion SMTP_SSL
+				# context = ssl.create_default_context()
 				# on créé la connexion au serveur avec SMTP_SSL et elle se ferme automatiquement grâce à 'with'
 				if mel:
-					with SMTP_SSL(smtp_server, port, context=context) as server:
-						# password = input("Entrez le mot de passe du serveur smtp: ")
-						# masque le mot de passe si on est en mode emulateur console dans edit config!!
-						# password = getpass.getpass(prompt="Entrez le mot de passe du serveur smtp: ")
-						# connexion au compte
-						server.login(sender_login, password)
-						# envoi du mail
-						server.sendmail(sender_alias, receiver_email, message.as_string())
+					try:
+						with SMTP(smtp_server, port) as server:
+						# with SMTP_SSL(smtp_server, port, context=context) as server:
+							# password = input("Entrez le mot de passe du serveur smtp: ")
+							# masque le mot de passe si on est en mode emulateur console dans edit config!!
+							# password = getpass.getpass(prompt="Entrez le mot de passe du serveur smtp: ")
+							# connexion au compte
+							server.login(sender_login, password)
+							# envoi du mail
+							server.sendmail(sender_alias, receiver_email, message.as_string())
+					except:
+						print(f"Pb avec envoi d'email vers {mel}")
 				else:
 					print("Vérifier que l'email est bien valide puis recommencez.")
 

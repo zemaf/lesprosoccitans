@@ -18,6 +18,7 @@ LISTE_LABELS_ARTISANS = ["Artisan_donneur", "Artisan_receveur"]
 
 
 class CustomDialog(QtWidgets.QDialog):
+    # On customise une fenêtre Qdialog => INUTILISÉ
     def __init__(self, message='', parent=None):
         super().__init__()
         self.setWindowTitle('ATTENTION!')
@@ -38,9 +39,11 @@ class CustomListItem(QtWidgets.QListWidgetItem):
 
 
 class CheckableComboBox(QtWidgets.QComboBox):
+    # on crée une combo box avec des éléments que l'on pourra sélectionner et ajouter à l'une ou l'autre des listes
+    # artisans donneurs et receveurs
     def __init__(self):
         super().__init__()
-        self.liste_artisans_receveurs = []
+        self.liste_artisans = []
         # view() retourne la vue de liste de la combobox
         # view() a un signal "pressed" qui renvoie l'index de l'item sélectionné
         self.view().pressed.connect(self.handle_item_pressed)
@@ -48,30 +51,33 @@ class CheckableComboBox(QtWidgets.QComboBox):
 
     # when any item get pressed
     def handle_item_pressed(self, index):
-
         # getting which item is pressed
         item = self.model().itemFromIndex(index)
-
         # make it check if unchecked and vice-versa
         if item.checkState() == Qt.Checked:
             item.setCheckState(Qt.Unchecked)
         else:
             item.setCheckState(Qt.Checked)
-        # calling method
+        # une fois ceci effectué on lance checked_items_list pour peupler les listes donneurs/receveurs
         self.checked_items_list()
 
-    # calling method
+    # méthode qui va permettre de peupler la liste des artisans donneurs et receveurs
     def checked_items_list(self):
-
-        # traversing the items
-        for i in range(self.count()):
+        # on parcourt la liste des artisans et on ajoute à liste_artisans_donneurs/receveurs les artisans sélectionnés
+        for i in range(self.count()):  # self.count() retourne le nb de rangée de 'self' qui est la checkable_cbox
             text_label = self.model().item(i, 0).text()
-            # if item is checked add it to the list
-            if self.item_check_status(i) and text_label not in self.liste_artisans_receveurs:
-                self.liste_artisans_receveurs.append(text_label)
-            elif not self.item_check_status(i) and text_label in self.liste_artisans_receveurs:
-                self.liste_artisans_receveurs.remove(text_label)
-        # print(self.liste_artisans_receveurs)
+            # si l'item est coché on l'ajoute à la liste s'il n'y est pas déjà présent
+            if self.item_check_status(i) and text_label not in self.liste_artisans:
+                self.liste_artisans.append(text_label)
+            # quand on désélectionne un artisan qui était présent dans la liste alors on le supprime de la liste
+            elif not self.item_check_status(i) and text_label in self.liste_artisans:
+                self.liste_artisans.remove(text_label)
+        # print(self.liste_artisans)
+
+    # fonction built-in pour empêcher la fermeture de la liste de la combobox à chaque sélection d'artisan
+    def hidePopup(self):
+        # pas besoin de code pour maintenir la liste affichée pendant la sélection des items!!
+        pass
 
     # method called by checked_items_list
     def item_check_status(self, index):
@@ -84,27 +90,36 @@ class CheckableComboBox(QtWidgets.QComboBox):
 
 
 class CustomInputDialog(QtWidgets.QWidget):
-
-    def __init__(self, ctx, parent=None):
+    # on prévoit un attribut parent qui correspond au parent de la boite de dialogue créée ici donc la fenêtre
+    # principale mainwindow
+    def __init__(self, parent=None):
         super().__init__()
-        instance_checkable_cbox = CheckableComboBox()  # on crée une instance de la classe 'CheckableComboBox()'
-        self.ctx = ctx
+        # on crée 2 instances de la classe CheckableComboBox pour peupler les combobox artisans donneurs et receveurs
+        donneur_checkable_cbox = CheckableComboBox()
+        receveur_checkable_cbox = CheckableComboBox()
+        # self.ctx = ctx
         self.parent = parent
-        self.ARTISANS = get_pros_occitans()  # on récupère la liste des artisans
+        self.ARTISANS = get_pros_occitans()  # on récupère la liste des artisans sous forme de dictionnaire
         self.nom = {'label': "Nom:", 'widget': QtWidgets.QLineEdit()}
         self.mel = {'label': "Email:", 'widget': QtWidgets.QLineEdit()}
         self.tel = {'label': "Tel:", 'widget': QtWidgets.QLineEdit()}
         self.adresse = {'label': "Adresse:", 'widget': QtWidgets.QLineEdit()}
-        self.artisan_donneur = {'label': "Artisan donneur:", 'widget': QtWidgets.QComboBox()}
+        self.artisan_donneur = {'label': "Artisan donneur:", 'widget': donneur_checkable_cbox}
+        # on place l'index à -1 pour pouvoir afficher le placeholder
+        self.artisan_donneur['widget'].setCurrentIndex(-1)
+        self.artisan_donneur['widget'].setPlaceholderText("Indiquez l'artisan qui a recommandé le prospect:")
+        # on peuple la combobox artisans donneurs
         self.artisan_donneur['widget'].addItems(self.ARTISANS.keys())
-        self.artisan_receveur = {'label': "Sélectionnez les artisans receveurs:", 'widget': instance_checkable_cbox}
-        self.artisan_receveur['widget'].setCurrentIndex(-1)  # on place l'index à -1 pour pouvoir afficher le placeholder
-        self.artisan_receveur['widget'].setPlaceholderText("Cochez les artisans souhaités")
+        self.artisan_receveur = {'label': "Sélectionnez les artisans receveurs:", 'widget': receveur_checkable_cbox}
+        self.artisan_receveur['widget'].setCurrentIndex(-1)
+        self.artisan_receveur['widget'].setPlaceholderText("Cochez les artisans recommandés")
+        # on peuple la checkable_combobox artisans receveurs
         self.artisan_receveur['widget'].addItems(self.ARTISANS.keys())
         self.btn_validate = QtWidgets.QPushButton("OK")
         # on initialise 'dict_prospect' avec les données 'artisan_receveur' récupérées de 'instance_checkable_cbox'
-        self.dict_prospect = dict(artisan_receveur=instance_checkable_cbox.liste_artisans_receveurs)
-
+        # => au départ artisan_receveur est vide puis se remplit à chaque clique sur la receveurs_checkable_cbox
+        self.dict_prospect = dict(artisan_donneur=donneur_checkable_cbox.liste_artisans,
+                                  artisan_receveur=receveur_checkable_cbox.liste_artisans)
 
         # Layout
 
@@ -127,25 +142,26 @@ class CustomInputDialog(QtWidgets.QWidget):
         # self.nom['widget'].editingFinished.connect(lambda key="zgeg", lineEdit=self.nom['widget']:
         # self.dict_prospect.update({key: lineEdit.text()}))
 
-        self.nom['widget'].editingFinished.connect(partial(self.create_key, "nom", self.nom['widget']))
-        self.mel['widget'].editingFinished.connect(partial(self.create_key, "mel", self.mel['widget']))
-        self.tel['widget'].editingFinished.connect(partial(self.create_key, "tel", self.tel['widget']))
-        self.adresse['widget'].editingFinished.connect(partial(self.create_key, "adresse", self.adresse['widget']))
-        self.artisan_donneur['widget'].textActivated.connect(partial(self.create_key, "artisan_donneur"))
-        # on récupère les données artisan_receveur via instance_checkable_cbox donc pas besoin de recréer une connection
+        self.nom['widget'].editingFinished.connect(partial(self.populate_dict_prospect,
+                                                           "nom", self.nom['widget']))
+        self.mel['widget'].editingFinished.connect(partial(self.populate_dict_prospect,
+                                                           "mel", self.mel['widget']))
+        self.tel['widget'].editingFinished.connect(partial(self.populate_dict_prospect,
+                                                           "tel", self.tel['widget']))
+        self.adresse['widget'].editingFinished.connect(partial(self.populate_dict_prospect,
+                                                               "adresse", self.adresse['widget']))
+
+        # Les listes artisan_donneur/receveur étant peuplées via la fonction checked_items_list
+        # de  instance_checkable_cbox on n'a donc pas besoin de la fonction populate_dict_prospect
 
         self.btn_validate.clicked.connect(self.validate_form)
 
-    def create_key(self, lbl, wdg):
-        # ATTENTION : wdg est soit un widget (lineedit), soit le texte retourné par le signal textActivated
-        if lbl not in ['artisan_donneur', 'artisan_receveur']:
-            self.dict_prospect[lbl] = wdg.text()
-            # print(self.dict_prospect)
-        else:
-            self.dict_prospect[lbl] = wdg
+    def populate_dict_prospect(self, lbl, wdg):
+        # on peuple dict_prospect au fur et à mesure que l'on remplit le formulaire 'créer un prospect'
+        self.dict_prospect[lbl] = wdg.text()  # ici wdg est un QLineEdit dont on récupère le texte entré
 
     def validate_form(self):
-
+        # on vérifie la validation du formulaire en s'assurant que le nom du prospect est bien renseigné
         try:
             if self.dict_prospect['nom']:
                 prospect = Prospect(**self.dict_prospect)
@@ -154,7 +170,7 @@ class CustomInputDialog(QtWidgets.QWidget):
                 self.mel['widget'].clear()
                 self.tel['widget'].clear()
                 self.adresse['widget'].clear()
-                self.close()
+                self.close()  # on ferme le formulaire
         except KeyError:
             message_box = QtWidgets.QMessageBox()
             message_box.setWindowTitle("Attention!")  # ne fonctionne pas sur mac os
@@ -163,9 +179,8 @@ class CustomInputDialog(QtWidgets.QWidget):
 
 
 class MainWindow(QtWidgets.QWidget):
-    def __init__(self, ctx):
+    def __init__(self):
         super().__init__()
-        self.ctx = ctx
 
         # obligatoire d'indiquer le chemin du fichier associé à la mainwindow pour afficher l'icone
         self.setWindowFilePath(os.getcwd())
@@ -190,6 +205,10 @@ class MainWindow(QtWidgets.QWidget):
         # self.te_details_prospect.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
         self.btn_mes_prospects = QtWidgets.QPushButton('Mes prospects')
         self.btn_delete = QtWidgets.QPushButton('Supprimer prospect')
+        self.le_search_prospect = QtWidgets.QLineEdit()
+        self.le_search_prospect.setPlaceholderText("Recherche client ")
+        # on affiche une croix = "clear button" si le champ recherche n'est pas vide
+        self.le_search_prospect.setClearButtonEnabled(True)
         self.btn_prospects_reco = QtWidgets.QPushButton('Mes prospects recommandés')
         self.btn_creer_prospects = QtWidgets.QPushButton('Créer un nouveau prospect')
         self.lbl_instructions = QtWidgets.QLabel('Sélectionnez un prospect avant de cliquer sur les boutons suivants ')
@@ -217,11 +236,12 @@ class MainWindow(QtWidgets.QWidget):
         self.main_layout.addWidget(self.btn_mes_prospects, 2, 0, 1, 2)
         # self.main_layout.addStretch() # ne fonctionne pas avec QGridLayout mais QHBoxLayout
         self.main_layout.addWidget(self.btn_prospects_reco, 2, 2, 1, 2)
-        self.main_layout.addWidget(self.btn_delete, 3, 0, 1, 1)
-        self.main_layout.addWidget(self.btn_creer_prospects, 4, 1, 1, 2)
-        self.main_layout.addWidget(self.lbl_instructions, 5, 1, 1, 2)
-        self.main_layout.addWidget(self.btn_signature_devis, 6, 1, 1, 2)
-        self.main_layout.addWidget(self.btn_date_fixee, 7, 1, 1, 2)
+        self.main_layout.addWidget(self.le_search_prospect, 3, 0, 1, 1)
+        self.main_layout.addWidget(self.btn_delete, 4, 0, 1, 1)
+        self.main_layout.addWidget(self.btn_creer_prospects, 5, 1, 1, 2)
+        self.main_layout.addWidget(self.lbl_instructions, 6, 1, 1, 2)
+        self.main_layout.addWidget(self.btn_signature_devis, 7, 1, 1, 2)
+        self.main_layout.addWidget(self.btn_date_fixee, 8, 1, 1, 2)
 
         # self.main_layout.addWidget(self.btn_test_combo, 8, 1, 1, 2)
 
@@ -233,6 +253,8 @@ class MainWindow(QtWidgets.QWidget):
         self.btn_prospects_reco.clicked.connect(self.load_prospects_reco)
 
         self.btn_delete.clicked.connect(self.delete_prospect)
+
+        self.le_search_prospect.textChanged.connect(self.search_prospect)
 
         # dès qu'on sélectionne un prospect on affiche son dictionnaire __dict__ via load_prospects
         self.lw_afficher_prospects.itemSelectionChanged.connect(self.display_prospect)
@@ -255,18 +277,8 @@ class MainWindow(QtWidgets.QWidget):
         # Grâce à cela on pourra accéder au prospect et afficher ses attributs, via: instance.__dict__,
         # en cliquant sur lw_item dans le listwidget
         lw_item.prospect = prospect  # lw_item a un attribut prospect qui est une instance de la classe Prospect
-        # on crée des attributs 'reco', 'donneur' et 'receveur' pour un prospect qui est recommandé, reçu et/ou envoyé
-        # lw_item.reco = True if any([
-        #     lw_item.prospect.artisan_donneur,
-        #     lw_item.prospect.artisan_receveur
-        # ]
-        # ) else False
-        # lw_item.donneur = True if lw_item.prospect.artisan_donneur else False
-        # lw_item.receveur = True if lw_item.prospect.artisan_receveur else False
-        self.lw_afficher_prospects.addItem(lw_item)  # on ajoute l'item au listwidget
 
-    # def combo_textchanged(self, t):
-    #     print(self.btn_test_combo.currentText())
+        self.lw_afficher_prospects.addItem(lw_item)  # on ajoute l'item au listwidget
 
     # on connecte le raccourci clavier pour effacer un prospect
     def connect_delete_shortcut(self):
@@ -274,48 +286,16 @@ class MainWindow(QtWidgets.QWidget):
 
     # on créé un nouveau prospect, on ajoute son nom à la listwidget et on le sauvegarde dans le fichier MES_PROSPECTS
     def creer_prospect(self):
-        p = CustomInputDialog(ctx=self.ctx, parent=self)
-        p.resize(150, 150)
+        # on crée une instance CustomInputDialog
+        p = CustomInputDialog(parent=self)
+        p.resize(300, 300)
         p.show()
-        # dict_prospect = {}
-        # # on crée la liste des titres de chaque InputDialog
-        # liste_titres = ["Nom :", "Email :", "Tel: ", "Adresse :", "Artisan_donneur", "Artisan_receveur"]
-        # liste_cles = Prospect().__dict__.keys()
-        # liste_titres_cles = list(zip(liste_titres, liste_cles))
-        # # titre_nom = QtWidgets.QInputDialog.getItem(self, "créer prospect", "nom", ['ali', 'zgeg'])
-        # titre_nom = self.creer_inputDialog("Nom :")
-        # # pour le nom, si on clique (cancel) ou (ok sans entrer de nom) on sort de la saisie du prospect
-        # if not titre_nom[0] or not titre_nom[1]:
-        #     message_box = QtWidgets.QMessageBox()
-        #     message_box.setWindowTitle("Attention!")  # ne fonctionne pas sur mac os
-        #     message_box.setText("Saisie du nom annulée!")
-        #     message_box.exec()
-        # elif titre_nom[0]:
-        #     dict_prospect["nom"] = titre_nom[0]
-        #     # on isole le 1er élément de liste_titres_cles et on itère sur le reste acr on ne veut pas répeter le nom
-        #     # first_elem = ("Nom :", "nom"), rest_elem = [("Email: ", "mel"), ("Tel: ", "tel"), ...]
-        #     first_elem, *rest_elem = liste_titres_cles
-        #     for titre, cle in rest_elem:
-        #         # if titre == "Nom :":
-        #         #     continue
-        #         att, resultat = self.creer_inputDialog(titre)
-        #         if resultat and att:
-        #             dict_prospect[cle] = att
-        #         # elif not resultat:
-        #         #     dlg = CustomDialog("on quitte la saisie?", self)
-        #         #     dlg.buttonBox.accepted.connect()
-        #         #
-        #         #     dlg.exec()
-        # if dict_prospect:
-        #     prospect = Prospect(**dict_prospect)  # on créé un nouveau prospect
-        #     self.add_prospect_to_listwidget(prospect)  # on ajoute l'instance prospect au listwidget
-        #     prospect.save_prospect()  # on l'enregistre
 
-    def creer_inputDialog(self, titre):
-        # la méthode getText prend 3 arguments et renvoie un tuple avec le texte entré par l'utilisateur et
-        # un booléen qui correspond à l'acceptation/rejet du dialogue
-        att, resultat = QtWidgets.QInputDialog.getText(self, "Créer un prospect", titre)
-        return att, resultat
+    # def creer_inputDialog(self, titre):
+    #     # la méthode getText prend 3 arguments et renvoie un tuple avec le texte entré par l'utilisateur et
+    #     # un booléen qui correspond à l'acceptation/rejet du dialogue
+    #     att, resultat = QtWidgets.QInputDialog.getText(self, "Créer un prospect", titre)
+    #     return att, resultat
 
     def delete_prospect(self):
         selected_prospect = self.get_selected_lw_item()
@@ -362,22 +342,36 @@ class MainWindow(QtWidgets.QWidget):
         for prospect in instances_prospects:  # on ajoute à la listwidget chaque nom de prospect un par un
             self.add_prospect_to_listwidget(prospect)
 
+    def search_prospect(self, txt):
+        if not txt:  # si le champ recherche est vide on vide la boite détails prospects
+            self.te_details_prospect.clear()
+        # on parcourt les rangs un par un
+        for i in range(self.lw_afficher_prospects.count()):
+            # on récupère le QListWidget item avec son n° de rang
+            itm = self.lw_afficher_prospects.item(i)
+            # on masque tous les items qui ne contiennent pas la chaine recherchée
+            itm.setHidden(txt.lower() not in itm.text().lower())
+            # il suffit ensuite de sélectionner l'item pour afficher ses détails
+
     def send_notifications(self):
         selected_prospect = self.get_selected_lw_item()  # on récupère le prospect sélectionné dans le listwidget
-        btn_text = self.sender().text()  # on récupère le texte du btn émetteur du signal
-        if not selected_prospect:
+        # on récupère le texte du btn émetteur du signal = 'signature devis' ou 'date des travaux..'
+        btn_text = self.sender().text()
+        if not selected_prospect:  # message d'erreur si aucun prospect sélectionné au préalable
             message_box = QtWidgets.QMessageBox()
             message_box.setWindowTitle("Attention!")  # ne fonctionne pas sur mac os
             message_box.setText("Veuillez sélectionner un prospect dans la liste ci-dessus")
             message_box.exec()
-        elif selected_prospect and not selected_prospect.reco:
-            message_box = QtWidgets.QMessageBox()
-            message_box.setWindowTitle("Attention!")  # ne fonctionne pas sur mac os
-            message_box.setText("Ce prospect n'a pas été recommandé!")
-            message_box.exec()
+
         else:
+            # on va récupérer les infos issus du widget inputdialog grâce à la méthode getText
+            # la méthode getText prend 3 arguments et renvoie un tuple avec le texte entré par l'utilisateur et
+            # un booléen qui correspond à l'acceptation/rejet du dialogue
             d, resultat = QtWidgets.QInputDialog.getText(self, btn_text, "Date: ?")
-            if resultat and selected_prospect.reco:
+            if resultat:  # si le dialogue est validé on envoieles messages
+                # prévoir une fonction qui créé un fichier calendrier .ics avec les dates de signature
+                # selected_prospect.prospect.creer_evenement_calendrier(date=d,
+                #                                             texte_evenement='signature entre artisan et prospect')
                 if selected_prospect.prospect.tel:
                     selected_prospect.prospect.envoi_sms(artisans=selected_prospect.prospect.check_reco(),
                                                          type_evenement=btn_text, date=d)
@@ -386,7 +380,8 @@ class MainWindow(QtWidgets.QWidget):
 
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ex = CustomInputDialog()
-    ex.show()
-    app.exec()
+    print(__name__)
+    # app = QApplication(sys.argv)
+    # ex = CustomInputDialog()
+    # ex.show()
+    # app.exec()

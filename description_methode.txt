@@ -1,9 +1,10 @@
 # on demande à l'artisan s'il souhaite créer un nouveau prospect
-# un prospect n'a qu'un seul artisan donneur, et peut avoir plusieurs artisans receveurs
+# un prospect  peut avoir plusieurs artisans receveurs et donneurs
 # on lui demande ensuite s'il veut notifier un évènement. Si oui:
 # on invite l'artisan à entrer le nom du prospect qui est concerné par l'évènement
 # on invite l'artisan à choisir le type d'évènement à notifier (signature devis, date travaux fixée)
 # on envoie ensuite notif par mail et sms
+# A RAJOUTER: créer un tableau excel récapitulant les événements significatifs prospect/artisan
 
 # prévoir de passer au statut 'confirmé ou validé' un prospect recommandé quand il a signé avec un artisan receveur
 # => permet de lister toutes les recommandations qui ont fonctionné par artisan
