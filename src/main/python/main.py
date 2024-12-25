@@ -1,7 +1,7 @@
 from fbs_runtime.application_context.PySide6 import ApplicationContext
 
-# on import os pour pouvoir insérer des lignes de commande
-# => utliser la commande "spctl —master-disable/enable" pour autoriser installation toute appli sur mac
+# on importe os pour pouvoir insérer des lignes de commande
+# → utiliser la commande "spctl —master-disable/enable" pour autoriser installation toute appli sur mac
 import os
 import sys
 

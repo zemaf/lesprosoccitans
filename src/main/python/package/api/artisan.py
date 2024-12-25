@@ -7,7 +7,7 @@ from smtplib import SMTP_SSL, SMTP
 import ssl
 import vonage
 
-from package.api.constants import MES_PROSPECTS, LISTE_PROS_OCCITANS
+from .constants import MES_PROSPECTS, LISTE_PROS_OCCITANS
 
 
 def decode_tel(numero: str):
@@ -34,7 +34,7 @@ def get_prospects():
 	else:
 		with open(MES_PROSPECTS, "r") as f:
 			liste_prospects = json.load(f)  # => {"nom_prospect": {mel: "mel", tel: "tel", ...}}
-			# donc k = nom du prospect et d = dictionanire contenant mel, tel, artisan_donneur
+			# donc k = nom du prospect et d = dictionnaire contenant mel, tel, artisan_donneur
 			liste_instances = [Prospect(nom=k, **d) for k, d in liste_prospects.items()]
 			return liste_instances
 
