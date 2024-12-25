@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/src/main/python" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
+      <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/target/Les_Pros_Occitans.app/Contents/Frameworks" />
       <excludeFolder url="file://$MODULE_DIR$/target/Les_Pros_Occitans/.idea" />
     </content>
